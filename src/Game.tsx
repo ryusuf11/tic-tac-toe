@@ -1,5 +1,5 @@
-import React from "react";
-import "./App.css";
+import React, { Dispatch, SetStateAction } from "react";
+import "./Game.css";
 
 type BoardArray = Array<string | null>;
 
@@ -37,6 +37,73 @@ const moves = {
   None: null,
 };
 
+const checkGameState = (board: BoardArray) => {
+  const hasWinner = (player: string) =>
+    WINNING_PATTERN.map((combination) =>
+      combination.map((position) => board[position] === player).every(Boolean)
+    ).some(Boolean);
+
+  const playerWin = hasWinner(moves.X);
+  const enemyWin = hasWinner(moves.O);
+  const isWon = playerWin || enemyWin;
+  const isDraw = board.filter(Boolean).length >= 9 && !isWon;
+
+  return {
+    isWon,
+    isDraw,
+    enemyWin,
+    playerWin,
+  };
+};
+
+const makeMove = (board: BoardArray, player: string, move: number) => {
+  const copy = [...board];
+  copy[move] = player;
+  return copy;
+};
+
+const getBestMove = (
+  board: BoardArray,
+  depth: number,
+  isMaximizingPlayer: Boolean,
+  setSquares: Dispatch<SetStateAction<BoardArray>>
+) => {
+  const { isDraw, isWon, playerWin, enemyWin } = checkGameState(board);
+
+  let score = 0;
+  if (playerWin) score = (10 - depth) * 1;
+  if (enemyWin) score = (10 - depth) * -1;
+  if (isWon || isDraw) return { move: -1, score };
+
+  const player = isMaximizingPlayer ? moves.X : moves.O;
+  const bestMove = {
+    score: isMaximizingPlayer ? -Infinity : Infinity,
+    move: -1,
+  };
+
+  for (const [move, cell] of board.entries()) {
+    if (cell !== moves.None) continue;
+
+    const newBoard = makeMove(board, player, move);
+    setSquares(newBoard);
+    const currentMove = getBestMove(
+      newBoard,
+      depth + 1,
+      !isMaximizingPlayer,
+      setSquares
+    );
+    if (
+      (isMaximizingPlayer && currentMove.score > bestMove.score) ||
+      (!isMaximizingPlayer && currentMove.score < bestMove.score)
+    ) {
+      bestMove.move = move;
+      bestMove.score = currentMove.score;
+    }
+  }
+
+  return bestMove;
+};
+
 const emptyBoard = () => new Array(9).fill(null);
 export const Computer = () => {
   const [squares, setSquares] = React.useState(emptyBoard);
@@ -45,67 +112,6 @@ export const Computer = () => {
   const playerCounter = React.useRef(0);
   const enemyCounter = React.useRef(0);
   const tieCounter = React.useRef(0);
-
-  const checkGameState = (board: BoardArray) => {
-    const hasWinner = (player: string) =>
-      WINNING_PATTERN.map((combination) =>
-        combination.map((position) => board[position] === player).every(Boolean)
-      ).some(Boolean);
-
-    const playerWin = hasWinner(moves.X);
-    const enemyWin = hasWinner(moves.O);
-    const isWon = playerWin || enemyWin;
-    const isDraw = board.filter(Boolean).length >= 9 && !isWon;
-
-    return {
-      isWon,
-      isDraw,
-      enemyWin,
-      playerWin,
-    };
-  };
-
-  const makeMove = (board: BoardArray, player: string, move: number) => {
-    const copy = [...board];
-    copy[move] = player;
-    return copy;
-  };
-
-  const getBestMove = (
-    board: BoardArray,
-    depth: number,
-    isMaximizingPlayer: Boolean
-  ) => {
-    const { isDraw, isWon, playerWin, enemyWin } = checkGameState(board);
-
-    let score = 0;
-    if (playerWin) score = (10 - depth) * 1;
-    if (enemyWin) score = (10 - depth) * -1;
-    if (isWon || isDraw) return { move: -1, score };
-
-    const player = isMaximizingPlayer ? moves.X : moves.O;
-    const bestMove = {
-      score: isMaximizingPlayer ? -Infinity : Infinity,
-      move: -1,
-    };
-
-    for (const [move, cell] of board.entries()) {
-      if (cell !== moves.None) continue;
-
-      const newBoard = makeMove(board, player, move);
-      setSquares(newBoard);
-      const currentMove = getBestMove(newBoard, depth + 1, !isMaximizingPlayer);
-      if (
-        (isMaximizingPlayer && currentMove.score > bestMove.score) ||
-        (!isMaximizingPlayer && currentMove.score < bestMove.score)
-      ) {
-        bestMove.move = move;
-        bestMove.score = currentMove.score;
-      }
-    }
-
-    return bestMove;
-  };
 
   const handleClick = (pos: number) => {
     const { isDraw, isWon } = checkGameState(squares);
@@ -123,7 +129,7 @@ export const Computer = () => {
 
     // Enemy move.
     setTimeout(() => {
-      const { move } = getBestMove(squares, round, false);
+      const { move } = getBestMove(squares, round, false, setSquares);
       squares[move] = moves.O;
       setRound((prevRound) => (prevRound += 1));
       setEnemyTurn((prevTurn) => !prevTurn);
@@ -155,7 +161,7 @@ export const Computer = () => {
       <div>Tie : {tieCounter.current}</div>
       <div>Enemy (O) : {enemyCounter.current}</div>
 
-      <button onClick={doReset}>rest</button>
+      <button onClick={doReset}>Reset Game</button>
     </div>
   );
 };
