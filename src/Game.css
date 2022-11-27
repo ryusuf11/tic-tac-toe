@@ -1,0 +1,19 @@
+.board {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  max-width: 200px;
+  gap: 1px;
+  background-color: black;
+}
+
+.square {
+  min-height: 66px;
+  background-color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: black;
+  font-size: 2.5rem;
+  cursor: pointer;
+}
